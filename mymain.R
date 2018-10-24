@@ -40,6 +40,24 @@ update_forecast <- function(test_month, dept_preds, dept, num_model) {
     test_month
 }
 
+
+# data shift
+shift <- function(train, test, threshold=1.1, shift=2){
+  s <- ts(rep(0,39), frequency=52, start=c(2012,44))
+  idx <- cycle(s) %in% 48:52
+  holiday <- test[idx, 2:46]
+  baseline <- mean(rowMeans(holiday[c(1, 5), ], na.rm=TRUE))
+  surge <- mean(rowMeans(holiday[2:4, ], na.rm=TRUE))
+  holiday[is.na(holiday)] <- 0
+  if(is.finite(surge/baseline) & surge/baseline > threshold){
+    shifted.sales <- ((7-shift)/7) * holiday
+    shifted.sales[2:5, ] <- shifted.sales[2:5, ] + (shift/7) * holiday[1:4, ]
+    shifted.sales[1, ] <- holiday[1, ]
+    test[idx, 2:46] <- shifted.sales
+  }
+  test
+}
+
 # update forecasts in the global test dataframe
 update_test <- function(test_month) {
     test <<- test %>%
@@ -67,8 +85,8 @@ preprocess.svd = function(train, n.comp){
 ##### Model Building Functions #####
 
 # Forecasts out the last observation in the training data
-naive_model<- function(train_ts, test_ts){
-    n.comp = 12
+my_model <- function(train_ts, test_ts){
+    n.comp = 6
     train_ts = preprocess.svd(train_ts, n.comp)   
     num_forecasts <- nrow(test_ts)
     train_ts[is.na(train_ts)] <- 0
@@ -76,9 +94,41 @@ naive_model<- function(train_ts, test_ts){
     # naive forecast per store
     for(j in 2:ncol(train_ts)){
         store_ts <- ts(train_ts[, j], frequency=52)
-        test_ts[, j] <- naive(store_ts, num_forecasts)$mean
+        model <- tslm(store_ts ~ trend + season)
+        fc <- forecast(model, h=num_forecasts)
+        test_ts[, j] <- fc$mean
     }
     test_ts
+}
+
+# Forecasts out the last observation in the training data
+naive_model<- function(train_ts, test_ts){
+  n.comp = 6
+  train_ts = preprocess.svd(train_ts, n.comp)   
+  num_forecasts <- nrow(test_ts)
+  train_ts[is.na(train_ts)] <- 0
+  
+  # snaive forecast per store
+  for(j in 2:ncol(train_ts)){
+    store_ts <- ts(train_ts[, j], frequency=52)
+    test_ts[, j] <- naive(store_ts, num_forecasts)$mean
+  }
+  test_ts
+}
+
+# Forecasts out the last observation in the training data
+snaive_model<- function(train_ts, test_ts){
+  n.comp = 6
+  train_ts = preprocess.svd(train_ts, n.comp)   
+  num_forecasts <- nrow(test_ts)
+  train_ts[is.na(train_ts)] <- 0
+  
+  # snaive forecast per store
+  for(j in 2:ncol(train_ts)){
+    store_ts <- ts(train_ts[, j], frequency=52)
+    test_ts[, j] <- snaive(store_ts, num_forecasts)$mean
+  }
+  test_ts
 }
 
 
@@ -147,8 +197,17 @@ mypredict <- function() {
         ###### Model Fitting / Forecasting ######
         
         # naive forecast
-        f_naive <- naive_model(train_dept_ts, test_dept_ts)
-        test_month <- update_forecast(test_month, f_naive, dept, 1)
+        pred <- naive_model(train_dept_ts, test_dept_ts)
+        test_month <- update_forecast(test_month, pred, dept, 1)
+        # snaive forcast 
+        pred <- snaive_model(train_dept_ts, test_dept_ts)
+        pred <- shift(train_dept_ts, pred, shift = 2)
+        test_month <- update_forecast(test_month, pred, dept, 2)
+        #tslm forecast
+        pred <- my_model(train_dept_ts, test_dept_ts)
+        pred <- shift(train_dept_ts, pred, shift = 2)
+        test_month <- update_forecast(test_month, pred, dept, 3)
+        
     }
     
     # update global test dataframe
