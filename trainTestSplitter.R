@@ -2,7 +2,7 @@ library(lubridate)
 library(tidyverse)
 
 # read raw data and extract date column
-train_raw <- readr::read_csv('train.csv')
+train_raw <- readr::read_csv(unz('data/train.csv.zip', 'train.csv'))
 train_dates <- train_raw$Date
 
 # training data from 2010-02 to 2011-02, i.e. one year
@@ -15,14 +15,14 @@ train = train_raw[train_ids, ]
 test = train_raw[-train_ids, ]
 
 # write the training results to a file
-readr::write_csv(train, 'train.csv')
+readr::write_csv(train, 'data/train.csv')
 
 # Create the test.csv 
 # Removes weekly sales and adds model pred columns.
 test %>% 
   select(-Weekly_Sales) %>% 
   mutate(Weekly_Pred1 = 0, Weekly_Pred2 = 0, Weekly_Pred3 = 0) %>% 
-  readr::write_csv('test.csv')
+  readr::write_csv('data/test.csv')
 
 # create 10-fold time-series CV
 num_folds <- 10
@@ -38,5 +38,5 @@ for (i in 1:num_folds) {
     filter(Date >= start_date & Date < end_date)
   
   # write fold to a file
-  readr::write_csv(test_fold, paste0('fold_', i, '.csv'))
+  readr::write_csv(test_fold, paste0('data/fold_', i, '.csv'))
 }

@@ -3,8 +3,8 @@ library(tidyverse)
 source("mymain.R")
 
 # read in train / test dataframes
-train <- readr::read_csv('train.csv')
-test <- readr::read_csv('test.csv', col_types = list(
+train <- readr::read_csv('data/train.csv')
+test <- readr::read_csv('data/test.csv', col_types = list(
   Weekly_Pred1 = col_double(),
   Weekly_Pred2 = col_double(),
   Weekly_Pred3 = col_double()
