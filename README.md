@@ -1,2 +1,2 @@
-# PSL_Project_2_R
+# Walmart Sales Forecasting
 Project 2 for PSL (R Edition)
